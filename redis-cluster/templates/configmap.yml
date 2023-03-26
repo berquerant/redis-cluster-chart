@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "redis-cluster.fullname" . }}-redis-conf
+  namespace: {{ .Release.Namespace }}
+data:
+  redis.conf: |
+    port {{ .Values.service.port }}
+    cluster-enabled yes
+    cluster-config-file nodes.conf
+    cluster-node-timeout {{ .Values.redis.clusterNodeTimeout }}
+    appendonly yes
+    enable-debug-command "local"
+    logfile {{ .Values.redis.logfile }}

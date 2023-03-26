@@ -1,0 +1,8 @@
+apiVersion: v2
+name: redis-cluster
+description: A Helm chart for redis cluster
+maintainers:
+  - name: berquerant
+type: application
+version: 0.1.0
+appVersion: "7.0.10"

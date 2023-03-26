@@ -1,0 +1,80 @@
+apiVersion : batch/v1
+kind : Job
+metadata:
+   name: {{ include "redis-cluster.fullname" . }}-setup
+   namespace: {{ .Release.Namespace }}
+   labels:
+     {{- include "redis-cluster.labels" . | nindent 4 }}
+spec:
+   template:
+     spec:
+       serviceAccountName: {{ .Values.setup.serviceAccount.name }}
+       restartPolicy : Never
+       containers:
+       - name: {{ include "redis-cluster.fullname" . }}-setup
+         image: {{ .Values.setup.image.repository }}:{{ .Values.setup.image.tag }}
+         imagePullPolicy: {{ .Values.setup.image.pullPolicy }}
+         command:
+         - 'sh'
+         - '-c'
+         - |
+           set -e
+           get_runnings() {
+             kubectl get statefulset {{ include "redis-cluster.fullname" . }} -o jsonpath='{.status.readyReplicas}' --namespace {{ .Release.Namespace }}
+           }
+
+           echo "$(date) Checking if all replicas of StatefulSet are ready..."
+           runnings="$(get_runnings)"
+           while [ "$runnings" != "{{ .Values.replicaCount }}" ]; do
+             echo "$(date) Waiting (${runnings}/{{ .Values.replicaCount }})..."
+             sleep 5
+             runnings="$(get_runnings)"
+           done
+           echo "$(date) All replicas of StatefulSet are ready!"
+
+           kubectl get pod --namespace {{ .Release.Namespace }} -owide
+
+           get_pods() {
+             kubectl get pod -ojson --namespace {{ .Release.Namespace }}|\
+               jq -r '.items[].metadata|select(any(.ownerReferences[];.kind=="StatefulSet" and .name=="redis-cluster")).name'
+           }
+           get_pod_domains() {
+             get_pods|awk '{printf "%s.{{ include "redis-cluster.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}\n", $1}'|xargs
+           }
+           get_first_pod() {
+             get_pods|head -n1
+           }
+           create_cluster() {
+             pod=$(get_first_pod)
+             nodes=$(get_pod_domains)
+             pod_script="echo yes|redis-cli --cluster create --cluster-replicas {{ .Values.redis.clusterReplicas }} $nodes"
+             script="/bin/bash -c \"${pod_script}\""
+             /bin/bash -c "kubectl exec -it ${pod} --namespace {{ .Release.Namespace }} -- ${script}"
+           }
+
+           echo "$(date) Create redis cluster..."
+           set -x
+           create_cluster
+           set +x
+
+           sleep 10
+
+           check_cluster() {
+             pod=$(get_first_pod)
+             pod_script="redis-cli --cluster check 127.0.0.1:{{ .Values.service.port }}"
+             script="/bin/bash -c \"${pod_script}\""
+             /bin/bash -c "kubectl exec ${pod} --namespace {{ .Release.Namespace }} -- ${script}"
+           }
+           echo "$(date) Check redis cluster..."
+           check_cluster
+
+           list_cluster_nodes() {
+             pod=$(get_first_pod)
+             pod_script="redis-cli -p {{ .Values.service.port }} cluster nodes"
+             script="/bin/bash -c \"${pod_script}\""
+             /bin/bash -c "kubectl exec ${pod} --namespace {{ .Release.Namespace }} -- ${script}"
+           }
+           echo "$(date) List cluster nodes..."
+           list_cluster_nodes
+
+           echo "$(date) Done!"

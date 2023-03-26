@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "redis-cluster.fullname" . }}-test-connection"
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "redis-cluster.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: test-kube
+      image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+      command:
+      - 'sh'
+      - '-c'
+      - |
+        set -ex
+        port={{ .Values.service.port }}
+        host=redis-cluster-0.{{ include "redis-cluster.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+        redis-cli -h "$host" -p "$port" -c ping
+        redis-cli --cluster check "${host}:${port}"
+        redis-cli -h "$host" -p "$port" cluster nodes
+  restartPolicy: Never

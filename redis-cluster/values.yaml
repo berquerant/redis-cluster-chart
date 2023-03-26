@@ -1,0 +1,51 @@
+# at least 6 nodes required. c.f. https://redis.io/docs/management/scaling/
+replicaCount: 6
+
+image:
+  repository: redis
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  port: 7000
+
+redis:
+  server: "redis-server"
+  confDir: "/usr/local/etc/redis"
+  clusterNodeTimeout: 5000
+  logfile: "/var/log/redis.log"
+  clusterReplicas: 1  # c.f. https://redis.io/docs/management/scaling/#create-and-use-a-redis-cluster
+  livenessProbe:
+    initialDelaySeconds: 3
+    periodSeconds: 3
+  readinessProbe:
+    initialDelaySeconds: 3
+    periodSeconds: 3
+
+setup:
+  serviceAccount:
+    annotations: {}
+    name: "redis-cluster-setup"
+  image:
+    repository: bitnami/kubectl
+    pullPolicy: IfNotPresent
+    tag: "1.25.8"
+
+resources: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
