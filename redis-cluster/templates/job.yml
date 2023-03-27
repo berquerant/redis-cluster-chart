@@ -19,18 +19,21 @@ spec:
          - '-c'
          - |
            set -e
+           log() {
+             echo "$(date) $@"
+           }
            get_runnings() {
              kubectl get statefulset {{ include "redis-cluster.fullname" . }} -o jsonpath='{.status.readyReplicas}' --namespace {{ .Release.Namespace }}
            }
 
-           echo "$(date) Checking if all replicas of StatefulSet are ready..."
+           log "Checking if all replicas of StatefulSet are ready..."
            runnings="$(get_runnings)"
            while [ "$runnings" != "{{ .Values.replicaCount }}" ]; do
-             echo "$(date) Waiting (${runnings}/{{ .Values.replicaCount }})..."
+             log "Waiting (${runnings}/{{ .Values.replicaCount }})..."
              sleep 5
              runnings="$(get_runnings)"
            done
-           echo "$(date) All replicas of StatefulSet are ready!"
+           log "All replicas of StatefulSet are ready!"
 
            kubectl get pod --namespace {{ .Release.Namespace }} -owide
 
@@ -52,7 +55,7 @@ spec:
              /bin/bash -c "kubectl exec -it ${pod} --namespace {{ .Release.Namespace }} -- ${script}"
            }
 
-           echo "$(date) Create redis cluster..."
+           log "Create redis cluster..."
            set -x
            create_cluster
            set +x
@@ -65,7 +68,7 @@ spec:
              script="/bin/bash -c \"${pod_script}\""
              /bin/bash -c "kubectl exec ${pod} --namespace {{ .Release.Namespace }} -- ${script}"
            }
-           echo "$(date) Check redis cluster..."
+           log "Check redis cluster..."
            check_cluster
 
            list_cluster_nodes() {
@@ -74,7 +77,7 @@ spec:
              script="/bin/bash -c \"${pod_script}\""
              /bin/bash -c "kubectl exec ${pod} --namespace {{ .Release.Namespace }} -- ${script}"
            }
-           echo "$(date) List cluster nodes..."
+           log "List cluster nodes..."
            list_cluster_nodes
 
-           echo "$(date) Done!"
+           log "Done!"
