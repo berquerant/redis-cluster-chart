@@ -39,7 +39,7 @@ spec:
 
            get_pods() {
              kubectl get pod -ojson --namespace {{ .Release.Namespace }}|\
-               jq -r '.items[].metadata|select(any(.ownerReferences[];.kind=="StatefulSet" and .name=="redis-cluster")).name'
+               jq -r '.items[].metadata|select(any(.ownerReferences[];.kind=="StatefulSet" and .name=="{{ include "redis-cluster.fullname" . }}")).name'
            }
            get_pod_domains() {
              get_pods|awk '{printf "%s.{{ include "redis-cluster.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}\n", $1}'|xargs
