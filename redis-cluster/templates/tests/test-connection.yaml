@@ -8,17 +8,66 @@ metadata:
   annotations:
     "helm.sh/hook": test
 spec:
+  serviceAccountName: {{ include "redis-cluster.fullname" . }}-test-connection
+  restartPolicy: Never
   containers:
-    - name: test-kube
+    - name: test-redis-connection
       image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
       command:
       - 'sh'
       - '-c'
       - |
         set -ex
+
+        # install curl, jq
+        apt update
+        apt install curl jq -y
+
+        # install kubectl
+        curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
+        chmod +x ./kubectl
+        mv ./kubectl /usr/local/bin/kubectl
+        kubectl version --output=json
+
+        get_first_pod() {
+          kubectl get pod -ojson --namespace {{ .Release.Namespace }}|\
+            jq -r '.items[].metadata|select(any(.ownerReferences[];.kind=="StatefulSet" and .name=="{{ include "redis-cluster.fullname" . }}")).name'|\
+            head -n1
+        }
+
         port={{ .Values.service.port }}
-        host=redis-cluster-0.{{ include "redis-cluster.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+        host=$(get_first_pod).{{ include "redis-cluster.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
         redis-cli -h "$host" -p "$port" -c ping
         redis-cli --cluster check "${host}:${port}"
         redis-cli -h "$host" -p "$port" cluster nodes
-  restartPolicy: Never
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "redis-cluster.fullname" . }}-test-connection
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "redis-cluster.labels" . | nindent 4 }}
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ include "redis-cluster.fullname" . }}-test-connection
+  namespace: {{ .Release.Namespace }}
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "watch", "list"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ include "redis-cluster.fullname" . }}-test-connection
+  namespace: {{ .Release.Namespace }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "redis-cluster.fullname" . }}-test-connection
+roleRef:
+  kind: Role
+  name: {{ include "redis-cluster.fullname" . }}-test-connection
+  apiGroup: rbac.authorization.k8s.io
