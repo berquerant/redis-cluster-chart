@@ -40,7 +40,7 @@ jobs:
         uses: WyriHaximus/github-action-helm3@v3
         if: steps.list-changed.outputs.changed == 'true'
         with:
-          exec: helm lint redis-cluster
+          exec: helm lint --strict redis-cluster
 
       - name: Run chart-testing (lint)
         if: steps.list-changed.outputs.changed == 'true'
