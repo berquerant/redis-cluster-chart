@@ -37,7 +37,7 @@ jobs:
       #     fi
 
       - name: Run helm lint
-        uses: WyriHaximus/github-action-helm3@v3
+        uses: WyriHaximus/github-action-helm3@v4
         # if: steps.list-changed.outputs.changed == 'true'
         with:
           exec: helm lint --strict redis-cluster
