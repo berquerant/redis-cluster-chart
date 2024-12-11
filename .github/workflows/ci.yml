@@ -23,10 +23,10 @@ jobs:
         uses: azure/setup-helm@b7246b12e77f7134dc2d460a3d5bad15bbe29390
         with:
           version: v3.11.2
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
-          check-latest: true
+      # - uses: actions/setup-python@v5
+      #   with:
+      #     python-version: '3.9'
+      #     check-latest: true
 
       # - name: Run chart-testing (list-changed)
       #   id: list-changed
@@ -37,7 +37,7 @@ jobs:
       #     fi
 
       - name: Run helm lint
-        uses: WyriHaximus/github-action-helm3@v3
+        uses: WyriHaximus/github-action-helm3@v4
         # if: steps.list-changed.outputs.changed == 'true'
         with:
           exec: helm lint --strict redis-cluster
